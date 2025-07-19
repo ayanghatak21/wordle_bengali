@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bengali WORDLE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="tutorial.js"></script>
+    <!-- Add Google AdSense Script -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_PUBLISHER_ID"
+            crossorigin="anonymous"></script>
+    <style>
+        /* Custom styles for the game grid */
+        .grid-cell {
+            width: 3.5rem; /* Reverted width for 5 letters */
+            height: 3.5rem; /* Reverted height for 5 letters */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #d3d6da;
+            font-size: 2rem; /* Reverted font size for 5 letters */
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 0.2rem; /* Reverted margin */
+            border-radius: 0.375rem; /* rounded corners */
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* Feedback colors */
+        .cell-correct {
+            background-color: #6aaa64; /* Green */
+            border-color: #6aaa64;
+            color: white;
+        }
+
+        .cell-present {
+            background-color: #c9b458; /* Yellow */
+            border-color: #c9b458;
+            color: white;
+        }
+
+        .cell-absent {
+            background-color: #787c7e; /* Gray */
+            border-color: #787c7e;
+            color: white;
+        }
+
+        .cell-empty {
+             background-color: #ffffff; /* White */
+             border-color: #d3d6da; /* Border */
+             color: #000000; /* Black text */
+        }
+
+        .cell-filled {
+            border-color: #878a8c; /* Darker border when filled */
+        }
+
+        /* Keyboard styles */
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .key {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #d3d6da;
+            border-radius: 0.25rem; /* rounded corners */
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 0 0.15rem;
+            height: 3rem;
+            min-width: 2rem; /* Minimum width for keys */
+            padding: 0 0.5rem; /* Padding for wider keys like Enter/Backspace */
+            transition: background-color 0.1s ease-in-out;
+        }
+
+        .key:active {
+            background-color: #b5b5b5; /* Darker color when pressed */
+        }
+
+        .key-large {
+            min-width: 4rem; /* Wider keys */
+        }
+
+        /* Message box styles */
+        .message-box {
+            position: fixed;
+            top: 10%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            pointer-events: none; /* Allow clicks to pass through when hidden */
+        }
+
+        .message-box.show {
+            opacity: 1;
+        }
+
+        /* Style for the main game board container to stack rows vertically */
+        #game-board {
+            display: flex;
+            flex-direction: column; /* Stack children (rows) vertically */
+            align-items: center; /* Center the rows horizontally */
+            gap: 0.5rem; /* Add some space between rows */
+            margin-bottom: 2rem; /* Space below the board */
+        }
+
+        /* Add new styles for tabs */
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-6xl flex gap-8">
+        <!-- Main Game Content -->
+        <div class="flex-1">
+            <h1 class="text-4xl font-bold mb-8 text-center">বাংলা WORDLE</h1>
+
+            <!-- Tab Navigation -->
+            <div class="flex justify-center space-x-4 mb-8">
+                <button class="tab-button active" data-tab="game">Game</button>
+                <button class="tab-button" data-tab="tutorial">How to Play</button>
+            </div>
+
+            <!-- Game Content -->
+            <div class="tab-content active" id="game-tab">
+                <div class="flex flex-col items-center">
+                    <div id="game-board" class="mb-8"></div>
+                    <div id="keyboard" class="w-full max-w-lg"></div>
+                </div>
+                <div id="message-box" class="message-box"></div>
+            </div>
+
+            <div class="tab-content" id="tutorial-tab">
+                <div class="bg-white rounded-lg p-8 shadow-lg">
+                    <div id="tutorial-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ad Module -->
+        <div class="w-80 flex-shrink-0">
+            <div id="ad-content"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import Tutorial from './tutorial.js';
+        import AdModule from './ad.js';
+
+        // Initialize the tutorial and ad content
+        document.addEventListener('DOMContentLoaded', function() {
+            const tutorialContent = document.getElementById('tutorial-content');
+            const adContent = document.getElementById('ad-content');
+            
+            tutorialContent.innerHTML = Tutorial.getTutorialContent();
+            adContent.innerHTML = AdModule.getAdContent();
+            
+            // Initialize Google AdSense ads
+            AdModule.initializeAds();
+
+            // Tab switching functionality
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Remove active class from all buttons and contents
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+
+                    // Add active class to clicked button and corresponding content
+                    button.classList.add('active');
+                    const tabId = button.dataset.tab;
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                });
+            });
+        });
+    </script>
+
+    <script>
+        let WORDS = []; // Declare WORDS as a variable to be populated later
+        const WORD_LENGTH = 5;
+        const MAX_GUESSES = 6;
+        // Function to load the word list from a file
+        // async 
+        async function loadWordList() {
+            console.log("Trying to load words");
+            try {
+                // Fetch the word list from the server
+                // Assuming the CSV has been processed into a simple text file
+                // with words separated by commas or newlines.
+                // Let's assume it's a comma-separated list for now, similar to the .txt context.
+                // If the CSV is large, you might need server-side processing to filter/select words.
+                // For this client-side fetch, we'll assume a pre-processed list like the .txt file.
+                const response = await fetch('assets/bangla_word_huge_dataset.csv'); 
+                // const response = fetch('assets/bangla_word_huge_dataset.csv'); 
+                // console.log("Response:", response.text());
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const text = await response.text();
+                // const text = response.text();
+                // Assuming the file is a "\r" OR "\n" separated string of words
+                WORDS = text.split(/\r?\n|\r/);
+                console.log("Words:", WORDS);
+
+                // Optional: Filter for 5-letter words if the source file contains words of different lengths
+                WORDS = WORDS.filter(word => word.length === WORD_LENGTH);
+                console.log(`Loaded ${WORDS.length} words.`);
+                // console.log("First few words:", WORDS.slice(0, 10)); // For debugging
+
+                // Now that words are loaded, initialize the game
+                newGame();
+
+            } catch (error) {
+                console.error("Failed to load word list:", error);
+                // Handle error - maybe display a message to the user
+                showMessage("Failed to load word list. Please try again later.");
+            }
+        }
+
+        // Initialize the game by loading the word list first
+        window.onload = loadWordList;
+
+        // The rest of the game variables and functions remain below this section
+        // ... (targetWord, currentGuess, currentRow, gameOver, gameBoard, keyboard, messageBox)
+        // ... (initializeBoard, initializeKeyboard, handleKeyPress, checkGuess, updateKeyColor, showMessage, newGame)
+        // Note: newGame is now called *after* the word list is loaded in loadWordList()
+
+        let targetWord = '';
+        let currentGuess = '';
+        let currentRow = 0;
+        let gameOver = false;
+
+        const gameBoard = document.getElementById('game-board');
+        const keyboard = document.getElementById('keyboard');
+        const messageBox = document.getElementById('message-box');
+
+        // Function to initialize the game board
+        function initializeBoard() {
+            gameBoard.innerHTML = ''; // Clear existing board
+            // Removed grid-cols-${WORD_LENGTH} from gameBoard
+
+            for (let i = 0; i < MAX_GUESSES; i++) {
+                const row = document.createElement('div');
+                // Added grid classes to the row itself
+                row.classList.add('flex', 'justify-center', 'grid', `grid-cols-${WORD_LENGTH}`, 'gap-1');
+                for (let j = 0; j < WORD_LENGTH; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell', 'cell-empty');
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    row.appendChild(cell);
+                }
+                gameBoard.appendChild(row);
+            }
+        }
+
+        // Function to initialize the keyboard
+        function initializeKeyboard() {
+            keyboard.innerHTML = ''; // Clear existing keyboard
+
+            // Bengali keyboard layout (example - adjust as needed)
+            const keyboardLayout = [
+                ['ক', 'খ', 'গ', 'ঘ', 'ঙ', 'চ', 'ছ', 'জ', 'ঝ', 'ঞ'],
+                ['ট', 'ঠ', 'ড', 'ঢ', 'ণ', 'ত', 'থ', 'দ', 'ধ', 'ন'],
+                ['প', 'ফ', 'ব', 'ভ', 'ম', 'য', 'র', 'ল', 'শ', 'ষ', 'স', 'হ'],
+                ['অ', 'আ', 'ই', 'ঈ', 'উ', 'ঊ', 'ঋ', 'এ', 'ঐ', 'ও', 'ঔ'],
+                ['ং', 'ঃ', 'ঁ', 'া', 'ি', 'ী', 'ু', 'ূ', 'ৃ', 'ে', 'ৈ', 'ো', 'ৌ', '্', '্য', '়'], // Added ্য and ়
+                ['Enter', 'Backspace']
+            ];
+
+            keyboardLayout.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.classList.add('keyboard-row');
+                row.forEach(key => {
+                    const keyDiv = document.createElement('div');
+                    keyDiv.classList.add('key');
+                    if (key === 'Enter' || key === 'Backspace') {
+                         keyDiv.classList.add('key-large');
+                    }
+                    keyDiv.textContent = key;
+                    keyDiv.dataset.key = key;
+                    keyDiv.addEventListener('click', handleKeyPress);
+                    rowDiv.appendChild(keyDiv);
+                });
+                keyboard.appendChild(rowDiv);
+            });
+        }
+
+        // Function to handle key presses (virtual keyboard or physical)
+        function handleKeyPress(event) {
+            if (gameOver) return;
+
+            let key;
+            if (event.type === 'click') {
+                key = event.target.dataset.key;
+            } else if (event.type === 'keydown') {
+                // Handle physical keyboard input (basic support)
+                // Need to map physical keys to Bengali characters if desired
+                // For simplicity, this example primarily uses the virtual keyboard
+                console.log("Physical key pressed:", event.key); // For debugging physical keys
+                return; // Disable physical keyboard for now to avoid complexity with Bengali mapping
+            }
+
+
+            if (key === 'Enter') {
+                if(!WORDS.includes(currentGuess)) {
+                    showMessage("Not a valid word");
+                    return;  
+                }
+                if (currentGuess.length === WORD_LENGTH) {
+                    checkGuess();
+                } else {
+                    showMessage("Not enough letters");
+                }
+            } else if (key === 'Backspace') {
+                currentGuess = currentGuess.slice(0, -1);
+                updateBoardRow();
+            } else if (key.length === 1 && currentGuess.length < WORD_LENGTH) {
+                currentGuess += key;
+                updateBoardRow();
+            }
+        }
+
+        // Function to update the current row display
+        function updateBoardRow() {
+            const cells = gameBoard.querySelectorAll(`[data-row='${currentRow}']`);
+            cells.forEach((cell, index) => {
+                cell.textContent = currentGuess[index] || '';
+                 if (currentGuess[index]) {
+                    cell.classList.remove('cell-empty');
+                    cell.classList.add('cell-filled');
+                } else {
+                     cell.classList.remove('cell-filled');
+                     cell.classList.add('cell-empty');
+                }
+            });
+        }
+
+        // Function to check the current guess
+        function checkGuess() {
+            const guess = currentGuess;
+            const target = targetWord;
+            const feedback = Array(WORD_LENGTH).fill(''); // 'correct', 'present', 'absent'
+            const targetChars = target.split('');
+            const guessChars = guess.split('');
+
+            // First pass: Check for correct letters in the correct position
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                if (guessChars[i] === targetChars[i]) {
+                    feedback[i] = 'correct';
+                    targetChars[i] = null; // Mark as used
+                }
+            }
+
+            // Second pass: Check for correct letters in the wrong position
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                if (feedback[i] === '') { // Only check if not already marked as correct
+                    const targetIndex = targetChars.indexOf(guessChars[i]);
+                    if (targetIndex > -1) {
+                        feedback[i] = 'present';
+                        targetChars[targetIndex] = null; // Mark as used
+                    } else {
+                        feedback[i] = 'absent';
+                    }
+                }
+            }
+
+            // Update cell colors based on feedback
+            const cells = gameBoard.querySelectorAll(`[data-row='${currentRow}']`);
+            cells.forEach((cell, index) => {
+                cell.classList.remove('cell-empty', 'cell-filled', 'cell-correct', 'cell-present', 'cell-absent');
+                cell.classList.add(`cell-${feedback[index]}`);
+                // Update keyboard key color
+                updateKeyColor(guessChars[index], feedback[index]);
+            });
+
+            // Check for win condition
+            if (feedback.every(status => status === 'correct')) {
+                showMessage("You won!");
+                gameOver = true;
+            } else if (currentRow === MAX_GUESSES - 1) {
+                showMessage(`Game Over! The word was: ${targetWord}`);
+                gameOver = true;
+            } else {
+                currentRow++;
+                currentGuess = '';
+            }
+        }
+
+        // Function to update keyboard key color based on feedback
+        function updateKeyColor(char, feedbackStatus) {
+            const keyElement = keyboard.querySelector(`[data-key='${char}']`);
+            if (keyElement) {
+                // Prioritize correct > present > absent
+                if (keyElement.classList.contains('cell-correct')) {
+                    return; // Already marked correct, don't change
+                }
+                if (feedbackStatus === 'present' && keyElement.classList.contains('cell-present')) {
+                    return; // Already marked present, don't change unless new feedback is correct
+                }
+
+                keyElement.classList.remove('cell-absent', 'cell-present'); // Remove previous absent/present
+                if (feedbackStatus === 'correct') {
+                     keyElement.classList.add('cell-correct');
+                     keyElement.style.backgroundColor = '#6aaa64'; // Green
+                     keyElement.style.borderColor = '#6aaa64';
+                     keyElement.style.color = 'white';
+                } else if (feedbackStatus === 'present') {
+                     keyElement.classList.add('cell-present');
+                     keyElement.style.backgroundColor = '#c9b458'; // Yellow
+                     keyElement.style.borderColor = '#c9b458';
+                     keyElement.style.color = 'white';
+                } else if (feedbackStatus === 'absent') {
+                     keyElement.classList.add('cell-absent');
+                     keyElement.style.backgroundColor = '#787c7e'; // Gray
+                     keyElement.style.borderColor = '#787c7e';
+                     keyElement.style.color = 'white';
+                }
+            }
+        }
+
+
+        // Function to display messages
+        function showMessage(msg) {
+            messageBox.textContent = msg;
+            messageBox.classList.add('show');
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 2000); // Hide after 2 seconds
+        }
+
+        // Function to start a new game
+        function newGame() {
+            // Initialize the game by loading the word list first
+            // loadWordList;
+            targetWord = WORDS[Math.floor(Math.random() * WORDS.length)];
+            // targetWord = 'পেঁকো';
+            // targetWord = 'অকৃতি';
+            // targetWord = 'শর্মদ';
+            // targetWord = 'নেড়া';
+            console.log("Initial target word (before newGame):", targetWord); // For testing
+            console.log("Characters:");
+            for (let i = 0; i < targetWord.length; i++) {
+                console.log(`- Character ${i}: ${targetWord[i]}`);
+            }
+            currentGuess = '';
+            currentRow = 0;
+            gameOver = false;
+            initializeBoard();
+            initializeKeyboard(); // Re-initialize keyboard colors
+        }
+
+        // Initialize the game on page load
+        // window.onload = newGame;
+
+        // Add event listener for physical keyboard (basic - primarily for Enter/Backspace)
+        // document.addEventListener('keydown', handleKeyPress); // Disabled for now due to Bengali character mapping complexity
+    </script>
+
+</body>
+</html>
