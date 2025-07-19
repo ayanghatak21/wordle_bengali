@@ -2,10 +2,17 @@
 
 This is a web-based implementation of the popular word-guessing game Wordle, adapted for the Bengali language.
 
+## How to Run
+
+1.  Start a web server in the project directory:
+    ```bash
+    python -m http.server
+    ```
+2.  Open your web browser and navigate to `http://localhost:8000/game.html`.
+
 ## How to Play
 
-1.  Open the `game.html` file in your web browser.
-2.  A tutorial will guide you through the gameplay.
+A tutorial will guide you through the gameplay.
 
 ## Project Structure
 
